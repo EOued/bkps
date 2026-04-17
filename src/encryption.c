@@ -4,19 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-Data* encrypt_data(const char* data, KeyManager* KM)
+Data* encrypt_data(Data* plain, KeyManager* KM, int autofree)
 {
-  size_t text_length = strlen(data);
-  return encrypt_data_length(data, text_length, KM);
-}
-
-Data* encrypt_data_length(const char* data, size_t data_length, KeyManager* KM)
-{
+  if (!plain || !plain->data || !KM) return NULL;
   unsigned char *public_key  = KMGetKey(KM, PUBLIC),
                 *private_key = KMGetKey(KM, PRIVATE);
   if (!public_key || !private_key) return NULL;
 
-  size_t text_length         = data_length,
+  size_t text_length         = plain->size,
          cipher_length       = text_length + crypto_box_MACBYTES;
   unsigned char *cipher_text = malloc(cipher_length),
                 *nonce       = malloc(crypto_box_NONCEBYTES);
@@ -27,8 +22,8 @@ Data* encrypt_data_length(const char* data, size_t data_length, KeyManager* KM)
   if (!encrypted) ERROR("Failed to allocate memory for encrypted");
 
   randombytes_buf(nonce, crypto_box_NONCEBYTES);
-  if (crypto_box_easy(cipher_text, (unsigned char*)data, text_length, nonce,
-                      public_key, private_key))
+  if (crypto_box_easy(cipher_text, plain->data, text_length, nonce, public_key,
+                      private_key))
   {
     fprintf(stderr, "Data encryption failed");
     encrypted->data = calloc(1, 1);
@@ -46,19 +41,13 @@ Data* encrypt_data_length(const char* data, size_t data_length, KeyManager* KM)
 cleanup:
   FREE(cipher_text);
   FREE(nonce);
+  if (autofree) DataFree(plain);
   return encrypted;
 }
 
-void DataFree(Data* encrypted)
+Data* decrypt_data(Data* encrypted, KeyManager* KM, int autofree)
 {
-  if (!encrypted) return;
-  FREE(encrypted->data);
-  free(encrypted);
-  return;
-}
-
-Data* decrypt_data(Data* encrypted, KeyManager* KM)
-{
+  if (!encrypted || !encrypted->data || !KM) return NULL;
   unsigned char *public_key  = KMGetKey(KM, PUBLIC),
                 *private_key = KMGetKey(KM, PRIVATE);
   if (!public_key || !private_key) return NULL;
@@ -89,5 +78,47 @@ Data* decrypt_data(Data* encrypted, KeyManager* KM)
 
   FREE(cipher_text);
   FREE(nonce);
+  if (autofree) DataFree(encrypted);
   return decrypted;
+}
+
+void DataFree(Data* data)
+{
+  if (!data) return;
+  FREE(data->data);
+  free(data);
+  return;
+}
+
+Data* DataFromString(char* string, int autofree)
+{
+  if (!string) return NULL;
+  Data* data = malloc(sizeof(Data));
+  size_t len = strlen(string);
+  if (!data) ERROR("Failed to allocate data struct");
+  data->data = malloc(len);
+  if (!data->data) ERROR("Failed to allocate data content");
+  memcpy(data->data, string, len);
+  data->size = len;
+  if (autofree) FREE(string);
+  return data;
+}
+
+char* DataToString(Data* data, int autofree)
+{
+  if (!data || !data->data) return NULL;
+  char* content = malloc(data->size + 1);
+  if (!content) ERROR("Failed to allocate content");
+  memcpy(content, data->data, data->size);
+  content[data->size] = 0;
+  if (autofree) DataFree(data);
+  return content;
+}
+
+void DataPrint(Data* data)
+{
+  if (!data || !data->data) return;
+  putchar('[');
+  for (size_t i = 0; i < data->size; i++) putchar(data->data[i]);
+  putchar(']');
 }

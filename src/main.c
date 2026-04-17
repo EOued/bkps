@@ -13,18 +13,14 @@ int main()
   KeyManager* KM = KMInit(10 * 60);
   KMCreateKeys(KM);
 
-  char* plaintext = "Chaotic Neutral, Sugar";
-  Data* encrypted = encrypt_data(plaintext, KM);
+  char* plaintext           = "Chaotic Neutral, Sugar";
+  Data *plain               = DataFromString(plaintext, 0),
+       *encrypted           = encrypt_data(plain, KM, 1),
+       *decrypted           = decrypt_data(encrypted, KM, 1);
+  char* plaintext_decrypted = DataToString(decrypted, 1);
   printf("Plaintext: %s\n", plaintext);
-  printf("Encrypted: [");
-  for (size_t i = 0; i < encrypted->size; i++) putc(encrypted->data[i], stdout);
-  printf("]\n");
-  printf("Decrypted: [");
-  Data* decrypted = decrypt_data(encrypted, KM);
-  for (size_t i = 0; i < decrypted->size; i++) putc(decrypted->data[i], stdout);
-  printf("]\n");
-  DataFree(encrypted);
-  DataFree(decrypted);
+  printf("Plaintext decrypted: %s\n", plaintext_decrypted);
+  free(plaintext_decrypted);
   KMFree(KM);
   return 0;
 }

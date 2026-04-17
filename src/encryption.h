@@ -9,8 +9,11 @@ typedef struct
   size_t size;
 } Data;
 
-Data* encrypt_data(const char* data, KeyManager* KM);
-Data* encrypt_data_length(const char* data, size_t data_length, KeyManager* KM);
-Data* decrypt_data(Data* encrypted, KeyManager* KM);
-void DataFree(Data* encrypted);
+Data* encrypt_data(Data* plain, KeyManager* KM, int autofree);
+Data* decrypt_data(Data* encrypted, KeyManager* KM, int autofree);
+
+Data* DataFromString(char* string, int autofree);
+char* DataToString(Data* data, int autofree);
+void DataFree(Data* data);
+void DataPrint(Data* data);
 #endif
