@@ -6,11 +6,18 @@
 
 Data* encrypt_data(Data* plain, KeyManager* KM, int autofree)
 {
-  if (!plain || !plain->data || !KM) return NULL;
+  if (!plain || !plain->data || !KM)
+  {
+    if (autofree) DataFree(plain);
+    return NULL;
+  }
   unsigned char *public_key  = KMGetKey(KM, PUBLIC),
                 *private_key = KMGetKey(KM, PRIVATE);
-  if (!public_key || !private_key) return NULL;
-
+  if (!public_key || !private_key)
+  {
+    if (autofree) DataFree(plain);
+    return NULL;
+  }
   size_t text_length         = plain->size,
          cipher_length       = text_length + crypto_box_MACBYTES;
   unsigned char *cipher_text = malloc(cipher_length),
@@ -22,10 +29,11 @@ Data* encrypt_data(Data* plain, KeyManager* KM, int autofree)
   if (!encrypted) ERROR("Failed to allocate memory for encrypted");
 
   randombytes_buf(nonce, crypto_box_NONCEBYTES);
-  if (crypto_box_easy(cipher_text, plain->data, text_length, nonce, public_key,
-                      private_key))
+  int error;
+  if ((error = crypto_box_easy(cipher_text, plain->data, text_length, nonce,
+                               public_key, private_key)))
   {
-    fprintf(stderr, "Data encryption failed");
+    fprintf(stderr, "Data encryption failed with error %d\n", error);
     encrypted->data = calloc(1, 1);
     encrypted->size = 0;
     if (!encrypted->data) ERROR("Failed to allocate memory for encrypted data");
@@ -47,11 +55,18 @@ cleanup:
 
 Data* decrypt_data(Data* encrypted, KeyManager* KM, int autofree)
 {
-  if (!encrypted || !encrypted->data || !KM) return NULL;
+  if (!encrypted || !encrypted->data || !KM)
+  {
+    if (autofree) DataFree(encrypted);
+    return NULL;
+  }
   unsigned char *public_key  = KMGetKey(KM, PUBLIC),
                 *private_key = KMGetKey(KM, PRIVATE);
-  if (!public_key || !private_key) return NULL;
-
+  if (!public_key || !private_key)
+  {
+    if (autofree) DataFree(encrypted);
+    return NULL;
+  }
   unsigned char *cipher_text = malloc(encrypted->size - crypto_box_NONCEBYTES),
                 *nonce       = malloc(crypto_box_NONCEBYTES);
   Data* decrypted            = malloc(sizeof(Data));
@@ -67,12 +82,13 @@ Data* decrypt_data(Data* encrypted, KeyManager* KM, int autofree)
       malloc(encrypted->size - crypto_box_NONCEBYTES - crypto_box_MACBYTES);
   decrypted->size =
       encrypted->size - crypto_box_NONCEBYTES - crypto_box_MACBYTES;
-  if (crypto_box_open_easy(decrypted->data, cipher_text,
-                           encrypted->size - crypto_box_NONCEBYTES, nonce,
-                           public_key, private_key))
+  int error;
+  if ((error = crypto_box_open_easy(decrypted->data, cipher_text,
+                                    encrypted->size - crypto_box_NONCEBYTES,
+                                    nonce, public_key, private_key)))
   {
-    fprintf(stderr, "Data decryption failed");
-    decrypted->data = calloc(1, 1);
+    fprintf(stderr, "Data decryption failed with error %d\n", error);
+    decrypted->data = NULL;
     decrypted->size = 0;
   }
 

@@ -1,5 +1,5 @@
 CFILES = \
-	main.c\
+	tests.c\
 	key_manager.c\
 	encryption.c\
 
@@ -8,14 +8,14 @@ SOURCES = $(foreach file, $(CFILES), $(SRCDIR)/$(file))
 OBJDIR = build/obj
 INCLUDE = -I$(SRCDIR)/headers
 OFILES = $(CFILES:.c=.o)
-SUBDIRS = 
+SUBDIRS = munit
 TARGETS = $(foreach file, $(OFILES), $(OBJDIR)/$(file))
 EXECDIR = build/target
 EXECNAME = bkps
 EXEC = $(EXECDIR)/$(EXECNAME)
 GXX = gcc
 FLAGS=-g -Wall -Wextra -Wvla -pedantic -fsanitize=address,undefined
-POSTFLAGS=-lm -lsodium
+POSTFLAGS=-lm -lsodium -lcriterion
 
 # ============== DO NOT EDIT =============
 

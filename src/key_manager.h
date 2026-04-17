@@ -13,12 +13,13 @@ enum KEY_TYPE
 
 typedef struct
 {
+  // In seconds
   size_t validity;
 
   // Keys storage
   unsigned char* private_key;
   unsigned char* public_key;
-  time_t creation_date;
+  struct timespec creation_date;
 } KeyManager;
 
 KeyManager* KMInit(size_t validity);
