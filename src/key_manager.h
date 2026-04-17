@@ -5,9 +5,15 @@
 
 // Manage keys (and their validity time)
 
+enum KEY_TYPE
+{
+  PUBLIC,
+  PRIVATE
+};
+
 typedef struct
 {
-  size_t validity; // How long is a key valid
+  size_t validity;
 
   // Keys storage
   unsigned char* private_key;
@@ -18,5 +24,6 @@ typedef struct
 KeyManager* KMInit(size_t validity);
 void KMFree(KeyManager* KM);
 int KMCreateKeys(KeyManager* KM);
+unsigned char* KMGetKey(KeyManager* KM, enum KEY_TYPE kt);
 
 #endif

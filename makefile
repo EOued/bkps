@@ -1,6 +1,7 @@
 CFILES = \
 	main.c\
 	key_manager.c\
+	encryption.c\
 
 SRCDIR = src
 SOURCES = $(foreach file, $(CFILES), $(SRCDIR)/$(file))
