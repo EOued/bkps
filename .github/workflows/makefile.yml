@@ -17,5 +17,8 @@ jobs:
     - name: installations
       run: sudo apt install libsodium-dev && sudo apt install libcriterion-dev
 
-    - name: test
+    - name: build
       run: make test
+
+    - name: test
+      run: build/target/bkps --verbose
