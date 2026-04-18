@@ -14,5 +14,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: installatins
+      run: apt install libsodium && apt install criterion
+
     - name: test
       run: make test
