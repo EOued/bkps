@@ -1,10 +1,11 @@
 CFILES = \
-	key_manager.c\
-	encryption.c\
+	encryption/key_manager.c\
+	encryption/encryption.c\
+	keepass/keepass_reader.c\
 
 SRCDIR = src
 OBJDIR = build/obj
-SUBDIRS =
+SUBDIRS = keepass encryption
 INCLUDE = -I$(SRCDIR)/headers
 EXECDIR = build/target
 EXECNAME = bkps

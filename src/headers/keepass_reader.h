@@ -1,0 +1,37 @@
+#ifndef KEEPASS_READER
+#define KEEPASS_READER
+
+#include <stdio.h>
+
+#define FILE_SIGNATURE_VALIDATION 0x9AA2D903
+
+enum file_version
+{
+  KDB      = 0xB54BFB65,
+  PRE_KDBX = 0xB54BFB66,
+  KDBX     = 0xB54BFB67
+};
+
+enum type
+{
+  END_OF_HEADER          = 0x0,
+  COMMENT                = 0x1,
+  CYPHER_ID              = 0x2,
+  COMPRESSIONS_FLAGS     = 0x3,
+  MASTER_SEED            = 0x4,
+  TRANSFORM_SEED         = 0x6,
+  ENCRYPTION_IV          = 0x7,
+  PROTECTED_STREAM_EY    = 0x8,
+  STREAM_START_BYTES     = 0x9,
+  INNER_RANDOM_STREAM_ID = 0xA
+};
+
+static const unsigned char AES_256_CIPHER[16] = {
+    0x31, 0xC1, 0xF2, 0xE6, 0xBF, 0x71, 0x43, 0x50,
+    0xBE, 0x58, 0x05, 0x21, 0x6A, 0xFC, 0x5A, 0xFF};
+
+static const unsigned char CHACHA20_CIPHER[16] = {
+    0xD6, 0x03, 0x8A, 0x2B, 0x8B, 0x6F, 0x4C, 0xB5,
+    0xA5, 0x24, 0x33, 0x9A, 0x31, 0xDB, 0xB5, 0x9A};
+void read_header(FILE* file);
+#endif
