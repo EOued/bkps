@@ -3,55 +3,12 @@
 
 #include "keepass_reader.h"
 #include "macros.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-unsigned char* hexstr_to_char(const char* hexstr)
-{
-  size_t len = strlen(hexstr);
-  if (len % 2 != 0) return NULL;
-  size_t final_len    = len / 2;
-  unsigned char* chrs = (unsigned char*)malloc((final_len + 1) * sizeof(*chrs));
-  for (size_t i = 0, j = 0; j < final_len; i += 2, j++)
-    chrs[j] = (hexstr[i] % 32 + 9) % 25 * 16 + (hexstr[i + 1] % 32 + 9) % 25;
-  chrs[final_len] = '\0';
-  return chrs;
-}
-
-void free_header(header* header)
-{
-  if (!header) return;
-  FREE(header->seed);
-  FREE(header->nonce);
-  FREE(header->kdf_parameter)
-  FREE(header);
-}
-
-header* read_keepass_header(FILE* file);
-
-void read_header(FILE* file)
-{
-  size_t fs;
-  enum file_version fv;
-  fread(&fs, 4, 1, file);
-  if (fs != FILE_SIGNATURE_VALIDATION) ERROR("Not a keepass file");
-  fread(&fv, 4, 1, file);
-  header* h;
-  switch (fv)
-  {
-  case KDB: ERROR("Not implemented"); break;
-  case PRE_KDBX: ERROR("Not implemented"); break;
-  case KDBX: h = read_keepass_header(file); break;
-  default: ERROR("Not a valid version");
-  }
-  free_header(h);
-  return;
-}
-
 header* read_keepass_header(FILE* file)
 {
-  enum type type;
+  enum type type = T_UNKNOWN;
   size_t length;
   size_t major_minor_version;
   fread(&major_minor_version, 4, 1, file);
@@ -65,8 +22,9 @@ header* read_keepass_header(FILE* file)
   h->nonce         = NULL;
   h->kdf_parameter = NULL;
 
-  do
+  while (type != END_OF_HEADER)
   {
+
     fread(&type, 1, 1, file);
     fread(&length, 4, 1, file);
     content = malloc(length);
@@ -87,13 +45,11 @@ header* read_keepass_header(FILE* file)
     case ENCRYPTION_IV:
     case KDF_PARAMETER:
     {
-      unsigned char** elem =
+      bytearray** elem =
           type == MASTER_SEED
               ? &h->seed
               : (type == ENCRYPTION_IV ? &h->nonce : &h->kdf_parameter);
-      *elem = malloc(length);
-      if (!*elem) ERROR("Failed to allocate memory for seed\n");
-      memcpy(*elem, content, length);
+      bytearray_init(elem, content, length);
       break;
     }
     case END_OF_HEADER:
@@ -102,7 +58,92 @@ header* read_keepass_header(FILE* file)
     default: break;
     }
     free(content);
-  } while (type != END_OF_HEADER);
+  }
 
   return h;
+}
+
+void read_variant_dictionnary(bytearray* array)
+{
+  size_t index = 2, version;
+  memcpy(&version, array->array, 2);
+  v_dictarray* dictarray = malloc(sizeof(v_dictarray));
+  variant_dictionnary* dict;
+  MCHK(dictarray);
+  dictarray->len         = 0;
+  dictarray->capacity    = 1;
+  dictarray->dictionnary = malloc(sizeof(variant_dictionnary));
+  MCHK(dictarray->dictionnary);
+  if (version != VARIANT_DICT_CURRENT)
+    ERROR("Failed to check version of variant dictionnary ");
+  // Items
+  while (array->array[index])
+  {
+    // List reallocation
+    if (dictarray->capacity == dictarray->len)
+    {
+      dictarray->capacity *= 2;
+      dictarray->dictionnary =
+          realloc(dictarray->dictionnary,
+                  dictarray->capacity * sizeof(variant_dictionnary));
+    }
+    dict       = &dictarray->dictionnary[dictarray->len];
+    dict->type = array->array[index];
+    index++;
+    memcpy(&(dict->name_size), &array->array[index], 4);
+    index += 4;
+    dict->name = malloc(dict->name_size);
+    MCHK(dict->name);
+    memcpy(dict->name, &array->array[index], dict->name_size);
+    index += dict->name_size;
+    memcpy(&(dict->value_size), &array->array[index], 4);
+    index += 4;
+    dict->value = malloc(dict->value_size);
+    MCHK(dict->value);
+    memcpy(dict->value, &array->array[index], dict->value_size);
+    index += dict->value_size;
+    dictarray->len++;
+  }
+  for (size_t i = 0; i < dictarray->len; i++)
+  {
+    printf("{\n");
+    printf("\tType: %02X\n", dictarray->dictionnary[i].type);
+    printf("\tName size: %08X\n", dictarray->dictionnary[i].name_size);
+    printf("\tName: ");
+    for (size_t j = 0; j < dictarray->dictionnary[i].name_size; j++)
+      printf("%02X ", dictarray->dictionnary[i].name[j]);
+    printf("\n");
+    printf("\tValue size: %08X\n", dictarray->dictionnary[i].value_size);
+    printf("\tValue: ");
+    for (size_t j = 0; j < dictarray->dictionnary[i].value_size; j++)
+      printf("%02X ", dictarray->dictionnary[i].value[j]);
+    printf("\n}\n");
+    FREE(dictarray->dictionnary[i].name);
+    FREE(dictarray->dictionnary[i].value);
+  }
+  FREE(dictarray->dictionnary);
+  FREE(dictarray);
+}
+
+void read_header(FILE* file)
+{
+  size_t fs;
+  enum file_version fv;
+  fread(&fs, 4, 1, file);
+  if (fs != FILE_SIGNATURE_VALIDATION) ERROR("Not a keepass file");
+  fread(&fv, 4, 1, file);
+  header* h;
+  switch (fv)
+  {
+  case KDB: ERROR("Not implemented"); break;
+  case PRE_KDBX: ERROR("Not implemented"); break;
+  case KDBX: h = read_keepass_header(file); break;
+  default: ERROR("Not a valid version");
+  }
+
+  // KDF
+  bytearray* KDF = h->kdf_parameter;
+  read_variant_dictionnary(KDF);
+  free_header(h);
+  return;
 }

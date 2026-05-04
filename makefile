@@ -2,6 +2,7 @@ CFILES = \
 	encryption/key_manager.c\
 	encryption/encryption.c\
 	keepass/keepass_reader.c\
+	keepass/utils.c\
 
 SRCDIR = src
 OBJDIR = build/obj
