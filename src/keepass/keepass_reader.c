@@ -19,7 +19,16 @@ unsigned char* hexstr_to_char(const char* hexstr)
   return chrs;
 }
 
-void read_keepass_header(FILE* file);
+void free_header(header* header)
+{
+  if (!header) return;
+  FREE(header->seed);
+  FREE(header->nonce);
+  FREE(header->kdf_parameter)
+  FREE(header);
+}
+
+header* read_keepass_header(FILE* file);
 
 void read_header(FILE* file)
 {
@@ -28,16 +37,19 @@ void read_header(FILE* file)
   fread(&fs, 4, 1, file);
   if (fs != FILE_SIGNATURE_VALIDATION) ERROR("Not a keepass file");
   fread(&fv, 4, 1, file);
+  header* h;
   switch (fv)
   {
   case KDB: ERROR("Not implemented"); break;
   case PRE_KDBX: ERROR("Not implemented"); break;
-  case KDBX: read_keepass_header(file); break;
+  case KDBX: h = read_keepass_header(file); break;
   default: ERROR("Not a valid version");
   }
+  free_header(h);
+  return;
 }
 
-void read_keepass_header(FILE* file)
+header* read_keepass_header(FILE* file)
 {
   enum type type;
   size_t length;
@@ -47,36 +59,50 @@ void read_keepass_header(FILE* file)
     ERROR("Major/minor version of file not implemented. Supported keepass "
           "version: 4.0");
   unsigned char* content;
+  header* h = malloc(sizeof(header));
+  if (!h) ERROR("Failed to allocate memory for h");
+  h->seed          = NULL;
+  h->nonce         = NULL;
+  h->kdf_parameter = NULL;
 
   do
   {
     fread(&type, 1, 1, file);
     fread(&length, 4, 1, file);
-    printf("Type is %u, length is %lu, content is [", type, length);
     content = malloc(length);
     fread(content, length, 1, file);
-    for (size_t i = 0; i < length; i++) printf("%x ", content[i]);
-    printf("]\n");
-
     switch (type)
     {
-    case 2:
-    {
+    case CYPHER_ID:
+      h->compression_algorithm = UNKNOWN;
       if (!memcmp(content, AES_256_CIPHER, length))
-      {
-        printf("\tUse AES-256 Algorithm\n");
-        break;
-      }
+        h->compression_algorithm = AES256;
       if (!memcmp(content, CHACHA20_CIPHER, length))
-      {
-        printf("\tUse ChaCha20 Algorithm\n");
-        break;
-      }
-      printf("Unknown algorithm; If you use a plugin, please not that they are "
-             "not supported (yet).");
+        h->compression_algorithm = CHACHA20;
+      break;
+    case COMPRESSIONS_FLAGS:
+      memcpy(&h->compression_flag, content, length);
+      break;
+    case MASTER_SEED:
+    case ENCRYPTION_IV:
+    case KDF_PARAMETER:
+    {
+      unsigned char** elem =
+          type == MASTER_SEED
+              ? &h->seed
+              : (type == ENCRYPTION_IV ? &h->nonce : &h->kdf_parameter);
+      *elem = malloc(length);
+      if (!*elem) ERROR("Failed to allocate memory for seed\n");
+      memcpy(*elem, content, length);
+      break;
     }
+    case END_OF_HEADER:
+      if (memcmp(content, EOH, length)) ERROR("Bad value for end of header");
+      break;
     default: break;
     }
     free(content);
   } while (type != END_OF_HEADER);
+
+  return h;
 }

@@ -23,8 +23,25 @@ enum type
   ENCRYPTION_IV          = 0x7,
   PROTECTED_STREAM_EY    = 0x8,
   STREAM_START_BYTES     = 0x9,
-  INNER_RANDOM_STREAM_ID = 0xA
+  INNER_RANDOM_STREAM_ID = 0xA,
+  KDF_PARAMETER          = 0xB
 };
+
+enum COMPRESSION_ALGORITHM
+{
+  AES256 = 0,
+  CHACHA20,
+  UNKNOWN
+};
+
+typedef struct
+{
+  enum COMPRESSION_ALGORITHM compression_algorithm;
+  size_t compression_flag;
+  unsigned char* seed;
+  unsigned char* nonce;
+  unsigned char* kdf_parameter;
+} header;
 
 static const unsigned char AES_256_CIPHER[16] = {
     0x31, 0xC1, 0xF2, 0xE6, 0xBF, 0x71, 0x43, 0x50,
@@ -33,5 +50,7 @@ static const unsigned char AES_256_CIPHER[16] = {
 static const unsigned char CHACHA20_CIPHER[16] = {
     0xD6, 0x03, 0x8A, 0x2B, 0x8B, 0x6F, 0x4C, 0xB5,
     0xA5, 0x24, 0x33, 0x9A, 0x31, 0xDB, 0xB5, 0x9A};
+
+static const unsigned char EOH[4] = {0xD, 0xA, 0xD, 0xA};
 void read_header(FILE* file);
 #endif
