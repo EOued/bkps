@@ -90,11 +90,44 @@ static const unsigned char CHACHA20_CIPHER[16] = {
 
 static const unsigned char EOH[4] = {0xD, 0xA, 0xD, 0xA};
 
-// utils
+static const unsigned char KDF_NAME_UUID[5] = {0x24, 0x55, 0x55, 0x49, 0x44};
+static const unsigned char KDF_NAME_I[1]    = {0x49};
+static const unsigned char KDF_NAME_M[1]    = {0x4D};
+static const unsigned char KDF_NAME_P[1]    = {0x50};
+static const unsigned char KDF_NAME_R[1]    = {0x52};
+static const unsigned char KDF_NAME_S[1]    = {0x53};
+static const unsigned char KDF_NAME_V[1]    = {0x56};
 
+static const unsigned char AES_KDF[16]  = {0xC9, 0xD9, 0xF3, 0x9A, 0x62, 0x8A,
+                                           0x44, 0x60, 0xBF, 0x74, 0x0D, 0x08,
+                                           0xC1, 0x8A, 0x4F, 0xEA};
+static const unsigned char ARGON2D[16]  = {0xEF, 0x63, 0x6D, 0xDF, 0x8C, 0x29,
+                                           0x44, 0x4B, 0x91, 0xF7, 0xA9, 0xA4,
+                                           0x03, 0xE3, 0x0A, 0x0C};
+static const unsigned char ARGON2DI[16] = {0x9E, 0x29, 0x8B, 0x19, 0x56, 0xDB,
+                                           0x47, 0x73, 0xB2, 0x3D, 0xFC, 0x3E,
+                                           0xC6, 0xF0, 0xA1, 0xE6};
+
+typedef struct
+{
+  bytearray* name;
+  bytearray* value;
+} KDF_Parameter;
+
+typedef struct
+{
+  unsigned short UUID[16];
+  KDF_Parameter* parameters;
+  size_t len;
+} KDF;
+
+// utils
 void bytearray_init(bytearray** array, unsigned char* content, size_t length);
 void bytearray_free(bytearray* array);
 void free_header(header* header);
+void free_dictarray(v_dictarray* dictarray);
+KDF* make_KDF(v_dictarray* dictarray);
+void free_KDF(KDF* kdf);
 
 void read_header(FILE* file);
 #endif

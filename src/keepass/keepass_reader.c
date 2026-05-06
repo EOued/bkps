@@ -63,7 +63,7 @@ header* read_keepass_header(FILE* file)
   return h;
 }
 
-void read_variant_dictionnary(bytearray* array)
+v_dictarray* read_variant_dictionnary(bytearray* array)
 {
   size_t index = 2, version;
   memcpy(&version, array->array, 2);
@@ -104,25 +104,8 @@ void read_variant_dictionnary(bytearray* array)
     index += dict->value_size;
     dictarray->len++;
   }
-  for (size_t i = 0; i < dictarray->len; i++)
-  {
-    printf("{\n");
-    printf("\tType: %02X\n", dictarray->dictionnary[i].type);
-    printf("\tName size: %08X\n", dictarray->dictionnary[i].name_size);
-    printf("\tName: ");
-    for (size_t j = 0; j < dictarray->dictionnary[i].name_size; j++)
-      printf("%02X ", dictarray->dictionnary[i].name[j]);
-    printf("\n");
-    printf("\tValue size: %08X\n", dictarray->dictionnary[i].value_size);
-    printf("\tValue: ");
-    for (size_t j = 0; j < dictarray->dictionnary[i].value_size; j++)
-      printf("%02X ", dictarray->dictionnary[i].value[j]);
-    printf("\n}\n");
-    FREE(dictarray->dictionnary[i].name);
-    FREE(dictarray->dictionnary[i].value);
-  }
-  FREE(dictarray->dictionnary);
-  FREE(dictarray);
+
+  return dictarray;
 }
 
 void read_header(FILE* file)
@@ -142,8 +125,11 @@ void read_header(FILE* file)
   }
 
   // KDF
-  bytearray* KDF = h->kdf_parameter;
-  read_variant_dictionnary(KDF);
+  bytearray* _KDF        = h->kdf_parameter;
+  v_dictarray* dictarray = read_variant_dictionnary(_KDF);
+  KDF* kdf               = make_KDF(dictarray);
+  free_KDF(kdf);
+  free_dictarray(dictarray);
   free_header(h);
   return;
 }
