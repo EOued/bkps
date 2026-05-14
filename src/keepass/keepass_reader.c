@@ -1,8 +1,9 @@
-// References: https://gist.github.com/lgg/e6ccc6e212d18dd2ecd8a8c116fb1e45
-// https://gist.github.com/xsleonard/7341172
+// References: https://keepass.info/help/kb/kdbx.html
 
 #include "keepass_reader.h"
 #include "macros.h"
+#include <argon2.h>
+#include <openssl/sha.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -108,7 +109,7 @@ v_dictarray* read_variant_dictionnary(bytearray* array)
   return dictarray;
 }
 
-void read_header(FILE* file)
+header* read_header(FILE* file)
 {
   size_t fs;
   enum file_version fv;
@@ -128,8 +129,50 @@ void read_header(FILE* file)
   bytearray* _KDF        = h->kdf_parameter;
   v_dictarray* dictarray = read_variant_dictionnary(_KDF);
   KDF* kdf               = make_KDF(dictarray);
+
+  // Key computation
+
+  // Master password
+  unsigned char password[13] = "elioleplusbo";
+  unsigned char* R           = malloc(SHA256_DIGEST_LENGTH);
+  unsigned char* T           = malloc(
+      32); // Why 32 ? Good question, seems to be the default value to set.
+  unsigned char* key  = malloc(SHA256_DIGEST_LENGTH);
+  unsigned char* _key = malloc(h->seed->len + 32);
+  MCHK(R);
+  MCHK(T);
+  MCHK(key);
+  SHA256(password, 13, R);
+
+  // Key derivation
+  if (memcmp(&kdf->UUID, ARGON2D, 16))
+  {
+    uint64_t t_cost, m_cost, parallelism;
+    bytearray* t_cost_array =
+        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_I, 1);
+    memcpy(&t_cost, t_cost_array->array, t_cost_array->len);
+    bytearray* m_cost_array =
+        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_M, 1);
+    memcpy(&m_cost, m_cost_array->array, m_cost_array->len);
+    bytearray* parallelism_array =
+        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_P, 1);
+    memcpy(&parallelism, parallelism_array->array, parallelism_array->len);
+    bytearray* salt_array =
+        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_P, 1);
+    argon2d_hash_raw(t_cost, m_cost, parallelism, R, SHA256_DIGEST_LENGTH,
+                     salt_array->array, salt_array->len, T, 32);
+  }
+
+  memcpy(_key, h->seed->array, h->seed->len);
+  memcpy(_key + 32, T, 32);
+
+  bytearray_init(&h->_key, _key, h->seed->len + 32);
+
+  free(R);
+  free(T);
+  free(_key);
+  free(key);
   free_KDF(kdf);
   free_dictarray(dictarray);
-  free_header(h);
-  return;
+  return h;
 }

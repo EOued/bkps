@@ -8,7 +8,8 @@
 
 int main()
 {
-  FILE* f = fopen("test.kdbx", "r");
-  read_header(f);
+  FILE* f   = fopen("test.kdbx", "r");
+  header* h = read_header(f);
+  free_header(h);
   fclose(f);
 }

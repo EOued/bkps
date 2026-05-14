@@ -24,6 +24,7 @@ void free_header(header* header)
   bytearray_free(header->seed);
   bytearray_free(header->nonce);
   bytearray_free(header->kdf_parameter);
+  bytearray_free(header->_key);
   FREE(header);
 }
 
@@ -63,7 +64,7 @@ KDF* make_KDF(v_dictarray* dictarray)
     // UUID Check
     if (elem.name_size == 5 && !memcmp(elem.name, KDF_NAME_UUID, 5))
     {
-      memcpy(kdf->UUID, elem.value, elem.value_size);
+      memcpy(kdf->UUID, elem.value, 1);
       continue;
     }
     bytearray_init(&parameter->name, elem.name, elem.name_size);
@@ -71,6 +72,18 @@ KDF* make_KDF(v_dictarray* dictarray)
     parameters_index++;
   }
   return kdf;
+}
+
+bytearray* KDF_getParameter(KDF* kdf, unsigned char* name, size_t n)
+{
+  for (size_t i = 0; i < kdf->len; i++)
+  {
+    if (kdf->parameters[i].name->len != n) continue;
+    if (memcmp(kdf->parameters[i].name->array, name, n)) continue;
+
+    return kdf->parameters[i].value;
+  }
+  return NULL;
 }
 
 void free_KDF(KDF* kdf)

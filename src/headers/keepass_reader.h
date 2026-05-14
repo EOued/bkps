@@ -78,6 +78,9 @@ typedef struct
   bytearray* seed;
   bytearray* nonce;
   bytearray* kdf_parameter;
+
+  // Computed in read_header function
+  bytearray* _key;
 } header;
 
 static const unsigned char AES_256_CIPHER[16] = {
@@ -116,7 +119,7 @@ typedef struct
 
 typedef struct
 {
-  unsigned short UUID[16];
+  uint8_t UUID[16];
   KDF_Parameter* parameters;
   size_t len;
 } KDF;
@@ -127,7 +130,8 @@ void bytearray_free(bytearray* array);
 void free_header(header* header);
 void free_dictarray(v_dictarray* dictarray);
 KDF* make_KDF(v_dictarray* dictarray);
+bytearray* KDF_getParameter(KDF* kdf, unsigned char* name, size_t n);
 void free_KDF(KDF* kdf);
 
-void read_header(FILE* file);
+header* read_header(FILE* file);
 #endif

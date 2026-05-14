@@ -14,7 +14,7 @@ MAINFILE = main.c
 TESTFILE = tests.c
 GXX = gcc
 FLAGS=-g -Wall -Wextra -Wvla -pedantic -fsanitize=address,undefined
-POSTFLAGS=-lm -lsodium 
+POSTFLAGS=-lm -lsodium -I /usr/local/opt/openssl/include -L /usr/local/opt/openssl/lib -lcrypto -largon2
 
 
 SOURCES = $(foreach file, $(CFILES), $(SRCDIR)/$(file))
