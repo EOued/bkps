@@ -64,49 +64,59 @@ header* read_keepass_header(FILE* file)
   return h;
 }
 
-v_dictarray* read_variant_dictionnary(bytearray* array)
+KDF* read_variant_dictionnary(bytearray* array)
 {
-  size_t index = 2, version;
+  size_t version;
   memcpy(&version, array->array, 2);
-  v_dictarray* dictarray = malloc(sizeof(v_dictarray));
-  variant_dictionnary* dict;
-  MCHK(dictarray);
-  dictarray->len         = 0;
-  dictarray->capacity    = 1;
-  dictarray->dictionnary = malloc(sizeof(variant_dictionnary));
-  MCHK(dictarray->dictionnary);
   if (version != VARIANT_DICT_CURRENT)
     ERROR("Failed to check version of variant dictionnary ");
+  uint32_t name_size = 0, value_size = 0;
+  size_t index = 2, capacity = 2;
+  KDF_Parameter* parameter;
+  KDF* kdf = malloc(sizeof(KDF));
+  MCHK(kdf);
+  kdf->len        = 0;
+  kdf->parameters = malloc(capacity * sizeof(KDF_Parameter));
+  MCHK(kdf->parameters);
+
   // Items
   while (array->array[index])
   {
+    if (index > array->len) break;
     // List reallocation
-    if (dictarray->capacity == dictarray->len)
+    if (capacity == kdf->len)
     {
-      dictarray->capacity *= 2;
-      dictarray->dictionnary =
-          realloc(dictarray->dictionnary,
-                  dictarray->capacity * sizeof(variant_dictionnary));
+      capacity *= 2;
+      kdf->parameters =
+          realloc(kdf->parameters, capacity * sizeof(KDF_Parameter));
+      MCHK(kdf->parameters);
     }
-    dict       = &dictarray->dictionnary[dictarray->len];
-    dict->type = array->array[index];
-    index++;
-    memcpy(&(dict->name_size), &array->array[index], 4);
-    index += 4;
-    dict->name = malloc(dict->name_size);
-    MCHK(dict->name);
-    memcpy(dict->name, &array->array[index], dict->name_size);
-    index += dict->name_size;
-    memcpy(&(dict->value_size), &array->array[index], 4);
-    index += 4;
-    dict->value = malloc(dict->value_size);
-    MCHK(dict->value);
-    memcpy(dict->value, &array->array[index], dict->value_size);
-    index += dict->value_size;
-    dictarray->len++;
-  }
 
-  return dictarray;
+    parameter = &kdf->parameters[kdf->len];
+    // Type is not used
+    index++;
+    memcpy(&name_size, &array->array[index], 4);
+    index += 4;
+    if (name_size == 5 && !memcmp(&array->array[index], KDF_NAME_UUID, 5))
+    {
+      // Offset: 5 bytes for the name, 4 bytes for the value size bytes. Size of
+      // UUID field is known to be of size 16
+      memcpy(kdf->UUID, &array->array[index + 9], 16);
+      index += 25;
+      continue;
+    }
+    bytearray_init(&parameter->name, &array->array[index], name_size);
+    index += name_size;
+    memcpy(&value_size, &array->array[index], 4);
+    index += 4;
+    bytearray_init(&parameter->value, &array->array[index], value_size);
+    index += value_size;
+    kdf->len++;
+  }
+  MCHK((kdf->parameters =
+            realloc(kdf->parameters, kdf->len * sizeof(KDF_Parameter))));
+
+  return kdf;
 }
 
 header* read_header(FILE* file)
@@ -126,53 +136,52 @@ header* read_header(FILE* file)
   }
 
   // KDF
-  bytearray* _KDF        = h->kdf_parameter;
-  v_dictarray* dictarray = read_variant_dictionnary(_KDF);
-  KDF* kdf               = make_KDF(dictarray);
-
-  // Key computation
-
-  // Master password
-  unsigned char password[13] = "elioleplusbo";
-  unsigned char* R           = malloc(SHA256_DIGEST_LENGTH);
-  unsigned char* T           = malloc(
-      32); // Why 32 ? Good question, seems to be the default value to set.
-  unsigned char* key  = malloc(SHA256_DIGEST_LENGTH);
-  unsigned char* _key = malloc(h->seed->len + 32);
-  MCHK(R);
-  MCHK(T);
-  MCHK(key);
-  SHA256(password, 13, R);
-
-  // Key derivation
-  if (memcmp(&kdf->UUID, ARGON2D, 16))
-  {
-    uint64_t t_cost, m_cost, parallelism;
-    bytearray* t_cost_array =
-        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_I, 1);
-    memcpy(&t_cost, t_cost_array->array, t_cost_array->len);
-    bytearray* m_cost_array =
-        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_M, 1);
-    memcpy(&m_cost, m_cost_array->array, m_cost_array->len);
-    bytearray* parallelism_array =
-        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_P, 1);
-    memcpy(&parallelism, parallelism_array->array, parallelism_array->len);
-    bytearray* salt_array =
-        KDF_getParameter(kdf, (unsigned char*)KDF_NAME_P, 1);
-    argon2d_hash_raw(t_cost, m_cost, parallelism, R, SHA256_DIGEST_LENGTH,
-                     salt_array->array, salt_array->len, T, 32);
-  }
-
-  memcpy(_key, h->seed->array, h->seed->len);
-  memcpy(_key + 32, T, 32);
-
-  bytearray_init(&h->_key, _key, h->seed->len + 32);
-
-  free(R);
-  free(T);
-  free(_key);
-  free(key);
-  free_KDF(kdf);
-  free_dictarray(dictarray);
+  bytearray* _KDF = h->kdf_parameter;
+  h->kdf          = read_variant_dictionnary(_KDF);
   return h;
 }
+
+/* keys* compute_keys(header* header) */
+/* { */
+/*   keys* k = malloc(sizeof(keys)); */
+/*   // Master password */
+/*   unsigned char password[13] = "elioleplusbo"; */
+/*   unsigned char* R           = malloc(SHA256_DIGEST_LENGTH); */
+/*   unsigned char* T           = malloc( */
+/*       32); // Why 32 ? Good question, seems to be the default value to set.
+ */
+/*   unsigned char* _key = malloc(header->seed->len + 32); */
+/*   MCHK(R); */
+/*   MCHK(T); */
+/*   SHA256(password, 13, R); */
+
+/*   // Key derivation */
+/*   if (!memcmp(&header->kdf->UUID, ARGON2D, 16)) */
+/*   { */
+/*     uint64_t t_cost, m_cost, parallelism; */
+/*     bytearray* t_cost_array = */
+/*         KDF_getParameter(header->kdf, (unsigned char*)KDF_NAME_I, 1); */
+/*     memcpy(&t_cost, t_cost_array->array, t_cost_array->len); */
+/*     bytearray* m_cost_array = */
+/*         KDF_getParameter(header->kdf, (unsigned char*)KDF_NAME_M, 1); */
+/*     memcpy(&m_cost, m_cost_array->array, m_cost_array->len); */
+/*     bytearray* parallelism_array = */
+/*         KDF_getParameter(header->kdf, (unsigned char*)KDF_NAME_P, 1); */
+/*     memcpy(&parallelism, parallelism_array->array, parallelism_array->len);
+ */
+/*     bytearray* salt_array = */
+/*         KDF_getParameter(header->kdf, (unsigned char*)KDF_NAME_S, 1); */
+/*     argon2d_hash_raw(t_cost, m_cost / 1024, parallelism, R, */
+/*                      SHA256_DIGEST_LENGTH, salt_array->array,
+ * salt_array->len, */
+/*                      T, 32); */
+/*   } */
+/*   memcpy(_key, header->seed->array, header->seed->len); */
+/*   memcpy(_key + 32, T, 32); */
+
+/*   bytearray_init(&k->master_key, _key, header->seed->len + 32); */
+
+/*   FREE(R); */
+/*   FREE(T); */
+/*   FREE(_key); */
+/* } */

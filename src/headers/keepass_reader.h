@@ -73,15 +73,32 @@ typedef struct
 
 typedef struct
 {
+  bytearray* name;
+  bytearray* value;
+} KDF_Parameter;
+
+typedef struct
+{
+  uint8_t UUID[16];
+  KDF_Parameter* parameters;
+  size_t len;
+} KDF;
+
+typedef struct
+{
   enum COMPRESSION_ALGORITHM compression_algorithm;
-  size_t compression_flag;
+  unsigned char compression_flag;
   bytearray* seed;
   bytearray* nonce;
   bytearray* kdf_parameter;
-
-  // Computed in read_header function
-  bytearray* _key;
+  KDF* kdf;
 } header;
+
+typedef struct
+{
+  bytearray* master_key;
+  bytearray* hmac_header;
+} keys;
 
 static const unsigned char AES_256_CIPHER[16] = {
     0x31, 0xC1, 0xF2, 0xE6, 0xBF, 0x71, 0x43, 0x50,
@@ -110,19 +127,6 @@ static const unsigned char ARGON2D[16]  = {0xEF, 0x63, 0x6D, 0xDF, 0x8C, 0x29,
 static const unsigned char ARGON2DI[16] = {0x9E, 0x29, 0x8B, 0x19, 0x56, 0xDB,
                                            0x47, 0x73, 0xB2, 0x3D, 0xFC, 0x3E,
                                            0xC6, 0xF0, 0xA1, 0xE6};
-
-typedef struct
-{
-  bytearray* name;
-  bytearray* value;
-} KDF_Parameter;
-
-typedef struct
-{
-  uint8_t UUID[16];
-  KDF_Parameter* parameters;
-  size_t len;
-} KDF;
 
 // utils
 void bytearray_init(bytearray** array, unsigned char* content, size_t length);
