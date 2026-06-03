@@ -28,23 +28,59 @@ void free_header(header* header)
   FREE(header);
 }
 
-void free_dictarray(v_dictarray* dictarray)
+KDF* read_variant_dictionary(bytearray* array)
 {
-  if (!dictarray) return;
-  if (!dictarray->dictionnary)
+  size_t version;
+  memcpy(&version, array->array, 2);
+  if (version != VARIANT_DICT_CURRENT)
+    ERROR("Failed to check version of variant dictionnary ");
+  uint32_t name_size = 0, value_size = 0;
+  size_t index = 2, capacity = 2;
+  KDF_Parameter* parameter;
+  KDF* kdf = malloc(sizeof(KDF));
+  MCHK(kdf);
+  kdf->len        = 0;
+  kdf->parameters = malloc(capacity * sizeof(KDF_Parameter));
+  MCHK(kdf->parameters);
+
+  // Items
+  while (array->array[index])
   {
-    FREE(dictarray);
-    return;
+    if (index > array->len) break;
+    // List reallocation
+    if (capacity == kdf->len)
+    {
+      capacity *= 2;
+      kdf->parameters =
+          realloc(kdf->parameters, capacity * sizeof(KDF_Parameter));
+      MCHK(kdf->parameters);
+    }
+
+    parameter = &kdf->parameters[kdf->len];
+    // Type is not used
+    index++;
+    memcpy(&name_size, &array->array[index], 4);
+    index += 4;
+    if (name_size == 5 && !memcmp(&array->array[index], KDF_NAME_UUID, 5))
+    {
+      // Offset: 5 bytes for the name, 4 bytes for the value size bytes. Size of
+      // UUID field is known to be of size 16
+      memcpy(kdf->UUID, &array->array[index + 9], 16);
+      index += 25;
+      continue;
+    }
+    bytearray_init(&parameter->name, &array->array[index], name_size);
+    index += name_size;
+    memcpy(&value_size, &array->array[index], 4);
+    index += 4;
+    bytearray_init(&parameter->value, &array->array[index], value_size);
+    index += value_size;
+    kdf->len++;
   }
-  variant_dictionnary elem;
-  for (size_t i = 0; i < dictarray->len; i++)
-  {
-    elem = dictarray->dictionnary[i];
-    FREE(elem.name);
-    FREE(elem.value);
-  }
-  FREE(dictarray->dictionnary);
-  FREE(dictarray);
+  MCHK((kdf->parameters =
+            realloc(kdf->parameters, kdf->len * sizeof(KDF_Parameter))));
+
+  return kdf;
 }
 
 bytearray* KDF_getParameter(KDF* kdf, unsigned char* name, size_t n)

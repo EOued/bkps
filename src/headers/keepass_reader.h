@@ -96,8 +96,8 @@ typedef struct
 
 typedef struct
 {
-  bytearray* master_key;
-  bytearray* hmac_header;
+  unsigned char master_key[32];
+  unsigned char hmac_header_key[64];
 } keys;
 
 static const unsigned char AES_256_CIPHER[16] = {
@@ -128,14 +128,18 @@ static const unsigned char ARGON2DI[16] = {0x9E, 0x29, 0x8B, 0x19, 0x56, 0xDB,
                                            0x47, 0x73, 0xB2, 0x3D, 0xFC, 0x3E,
                                            0xC6, 0xF0, 0xA1, 0xE6};
 
+static const unsigned char pos_8b[16] = {0xFF, 0xFF, 0xFF, 0xFF,
+                                         0xFF, 0xFF, 0xFF, 0xFF};
+
 // utils
 void bytearray_init(bytearray** array, unsigned char* content, size_t length);
 void bytearray_free(bytearray* array);
 void free_header(header* header);
-void free_dictarray(v_dictarray* dictarray);
-KDF* make_KDF(v_dictarray* dictarray);
+KDF* read_variant_dictionary(bytearray* kdf_parameter);
 bytearray* KDF_getParameter(KDF* kdf, unsigned char* name, size_t n);
 void free_KDF(KDF* kdf);
 
+// public
 header* read_header(FILE* file);
+keys* compute_keys(header* header);
 #endif
