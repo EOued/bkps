@@ -95,7 +95,9 @@ keys* compute_keys(header* header)
   unsigned char* T           = malloc(32);
   MCHK(R);
   MCHK(T);
-  SHA256(password, 13, R);
+  SHA256(password, 12, R);
+
+  SHA256(R, 32, R);
 
   uint64_t t_cost, m_cost, parallelism;
 
@@ -117,17 +119,19 @@ keys* compute_keys(header* header)
                      T, 32);
   }
 
+  printf("%lu\n", header->seed->len);
+
   unsigned char* STx01 = malloc(header->seed->len + 33);
   memcpy(STx01, header->seed->array, header->seed->len);
-  memcpy(STx01 + 32, T, 32);
-  STx01[header->seed->len + 22] = 0x01;
+  memcpy(STx01 + header->seed->len, T, 32);
+  STx01[header->seed->len + 32] = 0x01;
 
-  // Compute master key
-  SHA256(STx01, header->seed->len + 32, k->master_key);
+  /* //  Compute master key */
+  /* SHA256(STx01, header->seed->len + 32, k->master_key); */
 
   // Compute HMAC-SHA-256 header hash key
   unsigned char tohash[72];
-  memcpy(&tohash, pos_8b, 8);
+  memset(tohash, 0xFF, 8);
 
   SHA512(STx01, header->seed->len + 33, k->hashed_STx01);
 

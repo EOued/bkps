@@ -129,9 +129,6 @@ static const unsigned char ARGON2DI[16] = {0x9E, 0x29, 0x8B, 0x19, 0x56, 0xDB,
                                            0x47, 0x73, 0xB2, 0x3D, 0xFC, 0x3E,
                                            0xC6, 0xF0, 0xA1, 0xE6};
 
-static const unsigned char pos_8b[16] = {0xFF, 0xFF, 0xFF, 0xFF,
-                                         0xFF, 0xFF, 0xFF, 0xFF};
-
 // utils
 void bytearray_init(bytearray** array, unsigned char* content, size_t length);
 void bytearray_free(bytearray* array);
