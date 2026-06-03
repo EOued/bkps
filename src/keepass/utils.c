@@ -2,6 +2,7 @@
 #include "macros.h"
 #include <stdlib.h>
 #include <string.h>
+#include <openssl/sha.h>
 
 void bytearray_init(bytearray** array, unsigned char* content, size_t length)
 {
@@ -106,4 +107,16 @@ void free_KDF(KDF* kdf)
   }
   FREE(kdf->parameters);
   FREE(kdf);
+}
+
+unsigned char* HMAC_SHA_256_HASH_KEY(keys* k, uint64_t i)
+{
+  unsigned char *tohash = malloc(sizeof(uint64_t) + 64), *key = malloc(64);
+  MCHK(tohash);
+  MCHK(key);
+  memcpy(tohash, &i, sizeof(uint64_t));
+  memcpy(tohash + sizeof(uint64_t), k->hashed_STx01, 64);
+  SHA512(tohash, sizeof(uint64_t) + 64, key);
+  FREE(tohash);
+  return key;
 }

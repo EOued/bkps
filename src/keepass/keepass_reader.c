@@ -117,27 +117,25 @@ keys* compute_keys(header* header)
                      T, 32);
   }
 
-  unsigned char* ST = malloc(header->seed->len + 32);
-  MCHK(ST);
-  memcpy(ST, header->seed->array, header->seed->len);
-  memcpy(ST + 32, T, 32);
+  unsigned char* STx01 = malloc(header->seed->len + 33);
+  memcpy(STx01, header->seed->array, header->seed->len);
+  memcpy(STx01 + 32, T, 32);
+  STx01[header->seed->len + 22] = 0x01;
+
   // Compute master key
-  SHA256(ST, header->seed->len + 32, k->master_key);
+  SHA256(STx01, header->seed->len + 32, k->master_key);
 
   // Compute HMAC-SHA-256 header hash key
-  unsigned char hmac_intermediary_key_1[72], hmac_intermediary_key_2[64];
-  memcpy(&hmac_intermediary_key_1, pos_8b, 8);
+  unsigned char tohash[72];
+  memcpy(&tohash, pos_8b, 8);
 
-  MCHK((ST = realloc(ST, header->seed->len + 33)));
-  ST[header->seed->len + 32] = 0x01;
-  SHA512(ST, header->seed->len + 33, hmac_intermediary_key_2);
-  memcpy(hmac_intermediary_key_1 + 8, hmac_intermediary_key_2, 64);
+  SHA512(STx01, header->seed->len + 33, k->hashed_STx01);
 
-  SHA512(hmac_intermediary_key_1, 72, k->hmac_header_key);
+  memcpy(tohash + 8, k->hashed_STx01, 64);
+  SHA512(tohash, 72, k->hmac_header_key);
 
   FREE(R);
   FREE(T);
-  FREE(ST);
-
+  FREE(STx01);
   return k;
 }

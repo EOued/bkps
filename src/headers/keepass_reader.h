@@ -98,6 +98,7 @@ typedef struct
 {
   unsigned char master_key[32];
   unsigned char hmac_header_key[64];
+  unsigned char hashed_STx01[64];
 } keys;
 
 static const unsigned char AES_256_CIPHER[16] = {
@@ -142,4 +143,5 @@ void free_KDF(KDF* kdf);
 // public
 header* read_header(FILE* file);
 keys* compute_keys(header* header);
+unsigned char* HMAC_SHA_256_HASH_KEY(keys* k, uint64_t i);
 #endif

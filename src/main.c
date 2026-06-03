@@ -15,6 +15,7 @@ int main(void)
   FILE* f   = fopen("test.kdbx", "rb");
   header* h = read_header(f);
   keys* k   = compute_keys(h);
+  free(HMAC_SHA_256_HASH_KEY(k, 3));
   free_header(h);
   FREE(k);
   fclose(f);
