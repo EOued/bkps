@@ -41,23 +41,12 @@ int main(void)
     goto end2;
   }
 
-  for (long i = 0; i < pos; i++) printf("%02x ", raw_header[i]);
-  printf("\n");
-
   keys* k = compute_keys(h);
-  for (int i = 0; i < 64; i++) printf("%02x ", k->hmac_header_key[i]);
-  printf("\n");
-
   unsigned char CHMAP_SHA_256_HASH[32];
   HMAC(EVP_sha256(), k->hmac_header_key, 64, raw_header, pos,
        CHMAP_SHA_256_HASH, NULL);
   unsigned char HMAP_SHA_256_HASH[32];
   fread(HMAP_SHA_256_HASH, 32, 1, f);
-
-  for (int i = 0; i < 32; i++) printf("%02x ", CHMAP_SHA_256_HASH[i]);
-  printf("\n");
-  for (int i = 0; i < 32; i++) printf("%02x ", HMAP_SHA_256_HASH[i]);
-  printf("\n");
 
   if (memcmp(HMAP_SHA_256_HASH, CHMAP_SHA_256_HASH, 32))
   {
@@ -66,6 +55,7 @@ int main(void)
     EXIT_CODE = 1;
     goto end3;
   }
+  printf("Header passed all validations.\n");
   /* // Hexdump of remaining of file */
   /* int byte; */
   /* while (1) */

@@ -97,6 +97,10 @@ keys* compute_keys(header* header)
   MCHK(T);
   SHA256(password, 12, R);
 
+  // R is the SHA-256 of
+  // - SHA-256 hash of pwd
+  // -...
+  // so there is 2 SHA256
   SHA256(R, 32, R);
 
   uint64_t t_cost, m_cost, parallelism;
@@ -118,8 +122,6 @@ keys* compute_keys(header* header)
                      SHA256_DIGEST_LENGTH, salt_array->array, salt_array->len,
                      T, 32);
   }
-
-  printf("%lu\n", header->seed->len);
 
   unsigned char* STx01 = malloc(header->seed->len + 33);
   memcpy(STx01, header->seed->array, header->seed->len);
