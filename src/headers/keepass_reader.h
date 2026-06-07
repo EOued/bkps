@@ -141,4 +141,5 @@ void free_KDF(KDF* kdf);
 header* read_header(FILE* file);
 keys* compute_keys(header* header);
 unsigned char* HMAC_SHA_256_HASH_KEY(keys* k, uint64_t i);
+int compute_block(FILE* f, keys* k, uint64_t index);
 #endif

@@ -56,6 +56,9 @@ int main(void)
     goto end3;
   }
   printf("Header passed all validations.\n");
+
+  compute_block(f, k, 0);
+
   /* // Hexdump of remaining of file */
   /* int byte; */
   /* while (1) */

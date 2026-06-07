@@ -4,6 +4,7 @@
 #include "macros.h"
 #include <argon2.h>
 #include <openssl/sha.h>
+#include <openssl/hmac.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,7 +26,6 @@ header* read_keepass_header(FILE* file)
 
   while (type != END_OF_HEADER)
   {
-
     fread(&type, 1, 1, file);
     fread(&length, 4, 1, file);
     content = malloc(length);
@@ -128,8 +128,8 @@ keys* compute_keys(header* header)
   memcpy(STx01 + header->seed->len, T, 32);
   STx01[header->seed->len + 32] = 0x01;
 
-  /* //  Compute master key */
-  /* SHA256(STx01, header->seed->len + 32, k->master_key); */
+  //  Compute master key
+  SHA256(STx01, header->seed->len + 32, k->master_key);
 
   // Compute HMAC-SHA-256 header hash key
   unsigned char tohash[72];
@@ -144,4 +144,43 @@ keys* compute_keys(header* header)
   FREE(T);
   FREE(STx01);
   return k;
+}
+
+// -1: Integrity/Autenticity failed
+// otherwise, returns bool value representing if we need to stop
+int compute_block(FILE* f, keys* k, uint64_t index)
+{
+  unsigned char hash[32], chash[32], *block, *to_hash, *hmac_key;
+
+  uint32_t size;
+
+  fread(hash, 32, 1, f);
+  fread(&size, sizeof(uint32_t), 1, f);
+  if (!size) return !size;
+  block = malloc(size);
+  fread(block, size, 1, f);
+
+  // Integrity/Authenticity Check
+  MCHK((to_hash = malloc(sizeof(uint64_t) + sizeof(uint32_t) + size)))
+  memcpy(to_hash, &index, sizeof(uint64_t));
+  memcpy(to_hash + sizeof(uint64_t), &size, sizeof(uint32_t));
+  memcpy(to_hash + sizeof(uint64_t) + sizeof(uint32_t), block, size);
+
+  hmac_key = HMAC_SHA_256_HASH_KEY(k, index);
+  HMAC(EVP_sha256(), hmac_key, 64, to_hash,
+       sizeof(uint64_t) + sizeof(uint32_t) + size, chash, NULL);
+  free(hmac_key);
+
+  if (memcmp(chash, hash, 32))
+  {
+    fprintf(stderr,
+            "Failed to validate %lu data block: the file is corrupted.\n",
+            index);
+    free(block);
+    free(to_hash);
+    return -1;
+  }
+  free(block);
+  free(to_hash);
+  return 1;
 }
